@@ -90,6 +90,32 @@ func TestNestedTags(t *testing.T) {
 	}
 }
 
+func TestReadmeExample(t *testing.T) {
+	err := WrappedError("This is a root error")
+	err = WrapErrorf(err, "We failed to do Y and we can provide the cause")
+	err = WrapErrorf(err, "We failed to do X and we can provide the cause")
+	AssertError(t, err, "We failed to do X and we can provide the cause\n[+]: We failed to do Y and we can provide the cause\n[+]: This is a root error")
+}
+
+func TestReadmeExample2(t *testing.T) {
+	PrintStackTrace = true
+	err := WrappedError("This is a root error")
+	err = WrapErrorf(err, "We failed to do Y and we can provide the cause")
+	err = WrapErrorf(err, "We failed to do X and we can provide the cause")
+	AssertError(t, err, "We failed to do X and we can provide the cause\n   [github.com/Bedrock-OSS/go-burrito/burrito.TestReadmeExample2] main_test.go:104\n[+]: We failed to do Y and we can provide the cause\n   [github.com/Bedrock-OSS/go-burrito/burrito.TestReadmeExample2] main_test.go:103\n[+]: This is a root error\n   [github.com/Bedrock-OSS/go-burrito/burrito.TestReadmeExample2] main_test.go:102")
+	PrintStackTrace = false
+}
+
+func TestReadmeExample3(t *testing.T) {
+	const ErrNotFound = "not_found"
+	err := WrappedError("File not found")
+	err.(*Error).AddTag(ErrNotFound)
+	err = WrapErrorf(err, "We failed to do Y and we can provide the cause")
+	err = WrapErrorf(err, "We failed to do X and we can provide the cause")
+	AssertError(t, err, "We failed to do X and we can provide the cause\n[+]: We failed to do Y and we can provide the cause\n[+]: File not found")
+	AssertTags(t, err.(*Error), []string{ErrNotFound})
+}
+
 func AssertTags(t *testing.T, err *Error, strings []string) {
 	for _, tag := range strings {
 		if !err.HasTag(tag) {
