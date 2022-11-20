@@ -6,15 +6,6 @@ import (
 	"testing"
 )
 
-func AssertError(t *testing.T, err error, expected string) {
-	if err == nil {
-		t.Fatalf("Expected error: %s", expected)
-	} else if err.Error() != expected {
-		fmt.Printf("%s\n", err)
-		t.Fatalf("Expected error: %s, got: %s", expected, err.Error())
-	}
-}
-
 func TestWrapError(t *testing.T) {
 	err := WrapError(errors.New("test error"), "Outer error")
 	AssertError(t, err, "Outer error\n[+]: test error")
@@ -33,14 +24,14 @@ func TestMultilineWrapError(t *testing.T) {
 func TestStackTrace(t *testing.T) {
 	PrintStackTrace = true
 	err := WrapError(errors.New("test error"), "Outer error")
-	AssertError(t, err, "Outer error\n   [github.com/Bedrock-OSS/go-burrito/burrito.TestStackTrace] main_test.go:35\n[+]: test error")
+	AssertError(t, err, "Outer error\n   [github.com/Bedrock-OSS/go-burrito/burrito.TestStackTrace] main_test.go:26\n[+]: test error")
 	PrintStackTrace = false
 }
 
 func TestForceStackTrace(t *testing.T) {
 	err := WrapError(errors.New("test error"), "Outer error").(*Error)
 	err.ForceStackTrace(true)
-	AssertError(t, err, "Outer error\n   [github.com/Bedrock-OSS/go-burrito/burrito.TestForceStackTrace] main_test.go:41\n[+]: test error")
+	AssertError(t, err, "Outer error\n   [github.com/Bedrock-OSS/go-burrito/burrito.TestForceStackTrace] main_test.go:32\n[+]: test error")
 }
 
 func TestDisableStackTrace(t *testing.T) {
@@ -64,7 +55,7 @@ func TestWrappedError(t *testing.T) {
 func TestDoubleWrapErrorWithStackTrace(t *testing.T) {
 	err := WrapError(WrapError(errors.New("test error"), "Middle error"), "Outer error").(*Error)
 	err.ForceStackTrace(true)
-	AssertError(t, err, "Outer error\n   [github.com/Bedrock-OSS/go-burrito/burrito.TestDoubleWrapErrorWithStackTrace] main_test.go:65\n[+]: Middle error\n   [github.com/Bedrock-OSS/go-burrito/burrito.TestDoubleWrapErrorWithStackTrace] main_test.go:65\n[+]: test error")
+	AssertError(t, err, "Outer error\n   [github.com/Bedrock-OSS/go-burrito/burrito.TestDoubleWrapErrorWithStackTrace] main_test.go:56\n[+]: Middle error\n   [github.com/Bedrock-OSS/go-burrito/burrito.TestDoubleWrapErrorWithStackTrace] main_test.go:56\n[+]: test error")
 }
 
 func TestWrapErrorf(t *testing.T) {
@@ -75,4 +66,43 @@ func TestWrapErrorf(t *testing.T) {
 func TestWrappedErrorf(t *testing.T) {
 	err := WrappedErrorf("Error %d", 1).(*Error)
 	AssertError(t, err, "Error 1")
+}
+
+func TestTags(t *testing.T) {
+	err := WrapError(errors.New("test error"), "Outer error").(*Error)
+	err.AddTag("test")
+	AssertError(t, err, "Outer error\n[+]: test error")
+	AssertTags(t, err, []string{"test"})
+	if err.HasTag("test2") {
+		t.Fatalf("Expected no tag: test2")
+	}
+}
+
+func TestNestedTags(t *testing.T) {
+	err := WrapError(errors.New("test error"), "Middle error").(*Error)
+	err.AddTag("test")
+	err2 := WrapError(err, "Outer error").(*Error)
+	err2.AddTag("test2")
+	AssertError(t, err2, "Outer error\n[+]: Middle error\n[+]: test error")
+	AssertTags(t, err2, []string{"test", "test2"})
+	if err2.HasTag("test3") {
+		t.Fatalf("Expected no tag: test3")
+	}
+}
+
+func AssertTags(t *testing.T, err *Error, strings []string) {
+	for _, tag := range strings {
+		if !err.HasTag(tag) {
+			t.Fatalf("Expected tag: %s", tag)
+		}
+	}
+}
+
+func AssertError(t *testing.T, err error, expected string) {
+	if err == nil {
+		t.Fatalf("Expected error: %s", expected)
+	} else if err.Error() != expected {
+		fmt.Printf("%s\n", err)
+		t.Fatalf("Expected error: %s, got: %s", expected, err.Error())
+	}
 }

@@ -16,6 +16,7 @@ type Error struct {
 	Line           int
 	FuncName       string
 	ShowStackTrace *bool
+	Tags           []string
 }
 
 func (r *Error) Error() string {
@@ -40,10 +41,33 @@ func (r *Error) Error() string {
 			err = e.Err
 		} else {
 			text = fmt.Sprintf("%s\n[%s]: %s", text, color.RedString("+"), err.Error())
-			err = nil
+			break
 		}
 	}
 	return text
+}
+
+func (r *Error) AddTag(tag string) {
+	r.Tags = append(r.Tags, tag)
+}
+
+func (r *Error) HasTag(tag string) bool {
+	e := r
+	for e != nil {
+		for _, t := range e.Tags {
+			if t == tag {
+				return true
+			}
+		}
+		if e.Err != nil {
+			if err, ok := e.Err.(*Error); ok {
+				e = err
+				continue
+			}
+		}
+		break
+	}
+	return false
 }
 
 func (r *Error) ForceStackTrace(enabled bool) {
