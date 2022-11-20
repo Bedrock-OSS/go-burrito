@@ -116,6 +116,24 @@ func TestReadmeExample3(t *testing.T) {
 	AssertTags(t, err.(*Error), []string{ErrNotFound})
 }
 
+func TestGroupErrors(t *testing.T) {
+	err := GroupErrors(
+		WrappedError("Error 1"),
+		WrappedError("Error 2"),
+		WrappedError("Error 3"),
+	)
+	AssertError(t, err, "Error 1\nAdditionally the following errors occurred:\n\nError 2\n\nError 3")
+}
+
+func TestWrappedGroupErrors(t *testing.T) {
+	err := GroupErrors(
+		WrappedError("Error 1"),
+		WrappedError("Error 2"),
+		WrappedError("Error 3"),
+	)
+	AssertError(t, WrapError(err, "Failed to do something"), "Failed to do something\n[+]: Error 1\n  >> Additionally the following errors occurred:\n  >> \n  >> Error 2\n  >> \n  >> Error 3")
+}
+
 func AssertTags(t *testing.T, err *Error, strings []string) {
 	for _, tag := range strings {
 		if !err.HasTag(tag) {
