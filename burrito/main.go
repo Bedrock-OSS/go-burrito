@@ -9,24 +9,60 @@ import (
 	"strings"
 )
 
-var Debug = false
+type Error struct {
+	Err            error
+	Message        *string
+	File           string
+	Line           int
+	FuncName       string
+	ShowStackTrace *bool
+}
+
+func (r *Error) Error() string {
+	shouldPrintStackTrace := PrintStackTrace
+	if r.ShowStackTrace != nil {
+		shouldPrintStackTrace = *r.ShowStackTrace
+	}
+	text := ""
+	var err error = r
+	for err != nil {
+		if e, ok := err.(*Error); ok {
+			if e.Message != nil {
+				if e == r {
+					text = fmt.Sprintf("%s%s", text, strings.Replace(*e.Message, "\n", color.YellowString("\n   >> "), -1))
+				} else {
+					text = fmt.Sprintf("%s\n[%s]: %s", text, color.RedString("+"), strings.Replace(*e.Message, "\n", color.YellowString("\n   >> "), -1))
+				}
+			}
+			if shouldPrintStackTrace {
+				text = fmt.Sprintf("%s\n   [%s] %s:%d", text, e.FuncName, filepath.Base(e.File), e.Line)
+			}
+			err = e.Err
+		} else {
+			text = fmt.Sprintf("%s\n[%s]: %s", text, color.RedString("+"), err.Error())
+			err = nil
+		}
+	}
+	return text
+}
+
+func (r *Error) ForceStackTrace(enabled bool) {
+	r.ShowStackTrace = &enabled
+}
+
+var PrintStackTrace = false
 
 // wrapErrorStackTrace is used by other wrapped error functions to add a stack
 // trace to the error message.
 func wrapErrorStackTrace(err error, text string) error {
-	text = strings.Replace(text, "\n", color.YellowString("\n   >> "), -1)
-
-	if err != nil {
-		text = fmt.Sprintf(
-			"%s\n[%s]: %s", text, color.RedString("+"), err.Error())
+	pc, fn, line, _ := runtime.Caller(2)
+	return &Error{
+		Err:      err,
+		Message:  &text,
+		File:     filepath.Base(fn),
+		Line:     line,
+		FuncName: runtime.FuncForPC(pc).Name(),
 	}
-	if Debug {
-		pc, fn, line, _ := runtime.Caller(2)
-		text = fmt.Sprintf(
-			"%s\n   [%s] %s:%d", text, runtime.FuncForPC(pc).Name(),
-			filepath.Base(fn), line)
-	}
-	return errors.New(text)
 }
 
 // wrapErrorHandlerErrorStackTrace is a helper function for wrapping errors
@@ -78,7 +114,7 @@ func wrapErrorHandlerErrorStackTrace(
 	}
 	text = text + errorHandlerText
 	// Add stack trace (optional)
-	if Debug {
+	if PrintStackTrace {
 		pc, fn, line, _ := runtime.Caller(2)
 		text = fmt.Sprintf(
 			"%s\n   [%s] %s:%d", text, runtime.FuncForPC(pc).Name(),
@@ -90,7 +126,7 @@ func wrapErrorHandlerErrorStackTrace(
 // PassError adds stack trace to an error without any additional text.
 func PassError(err error) error {
 	text := err.Error()
-	if Debug {
+	if PrintStackTrace {
 		pc, fn, line, _ := runtime.Caller(1)
 		text = fmt.Sprintf(
 			"%s\n   [%s] %s:%d", text, runtime.FuncForPC(pc).Name(),
