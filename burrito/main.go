@@ -84,6 +84,46 @@ func (r *Error) HasTag(tag string) bool {
 	return false
 }
 
+// HasTag returns true if the error is burrito error and has the specified tag.
+func HasTag(err error, tag string) bool {
+	if e, ok := err.(*Error); ok {
+		return e.HasTag(tag)
+	}
+	return false
+}
+
+// GetAllMessages returns all messages of the error and all wrapped errors.
+func GetAllMessages(err error) []string {
+	var messages []string
+	e := err
+	for e != nil {
+		if err1, ok := e.(*Error); ok {
+			if err1.Message != nil {
+				messages = append(messages, *err1.Message)
+			}
+			e = err1.Err
+		} else {
+			messages = append(messages, e.Error())
+			break
+		}
+	}
+	return messages
+}
+
+// IsBurritoError returns true if the error is a burrito error.
+func IsBurritoError(err error) bool {
+	_, ok := err.(*Error)
+	return ok
+}
+
+// AsBurritoError converts an error to a burrito error.
+func AsBurritoError(err error) *Error {
+	if e, ok := err.(*Error); ok {
+		return e
+	}
+	return nil
+}
+
 // ForceStackTrace overrides the global PrintStackTrace setting.
 func (r *Error) ForceStackTrace(enabled bool) {
 	r.ShowStackTrace = &enabled
