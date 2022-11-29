@@ -134,6 +134,11 @@ func TestWrappedGroupErrors(t *testing.T) {
 	AssertError(t, WrapError(err, "Failed to do something"), "Failed to do something\n[+]: Error 1\n  >> Additionally the following errors occurred:\n  >> \n  >> Error 2\n  >> \n  >> Error 3")
 }
 
+func TestMixedErrors(t *testing.T) {
+	err := WrapError(PassError(WrapError(WrappedError("test error"), "Inner error")), "Outer error")
+	AssertError(t, err, "Outer error\n[+]: Inner error\n[+]: test error")
+}
+
 func AssertTags(t *testing.T, err *Error, strings []string) {
 	for _, tag := range strings {
 		if !err.HasTag(tag) {
