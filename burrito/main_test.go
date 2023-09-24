@@ -139,6 +139,47 @@ func TestMixedErrors(t *testing.T) {
 	AssertError(t, err, "Outer error\n[+]: Inner error\n[+]: test error")
 }
 
+func TestWalkErrorStop(t *testing.T) {
+	err := WrapError(PassError(WrapError(WrappedError("test error"), "Inner error")), "Outer error")
+	var count int
+	WalkError(err, func(err *Error) bool {
+		count++
+		return true
+	})
+	if count != 1 {
+		t.Fatalf("Expected count: %d, got: %d", 1, count)
+	}
+}
+
+func TestWalkError(t *testing.T) {
+	err := WrapError(PassError(WrapError(WrappedError("test error"), "Inner error")), "Outer error")
+	var count int
+	WalkError(err, func(err *Error) bool {
+		count++
+		return false
+	})
+	if count != 4 {
+		t.Fatalf("Expected count: %d, got: %d", 4, count)
+	}
+}
+
+func TestProperty(t *testing.T) {
+	err := WrappedError("test error")
+	err.(*Error).AddProperty("test", "test value")
+	if !err.(*Error).HasProperty("test") {
+		t.Fatalf("Expected property: %s", "test")
+	}
+	if err.(*Error).GetProperty("test") != "test value" {
+		t.Fatalf("Expected property value: %s", "test value")
+	}
+	if err.(*Error).HasProperty("test2") {
+		t.Fatalf("Unexpected property: %s", "test2")
+	}
+	if err.(*Error).GetProperty("test2") != nil {
+		t.Fatalf("Unexpected property value: %s", err.(*Error).GetProperty("test2"))
+	}
+}
+
 func AssertTags(t *testing.T, err *Error, strings []string) {
 	for _, tag := range strings {
 		if !err.HasTag(tag) {

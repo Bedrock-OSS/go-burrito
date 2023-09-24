@@ -16,6 +16,7 @@ type Error struct {
 	FuncName       string
 	ShowStackTrace *bool
 	Tags           []string
+	Properties     map[string]interface{}
 }
 
 type ErrorGroup struct {
@@ -65,22 +66,17 @@ func (r *Error) AddTag(tag string) {
 
 // HasTag returns true if the error has the specified tag.
 func (r *Error) HasTag(tag string) bool {
-	e := r
-	for e != nil {
-		for _, t := range e.Tags {
+	result := false
+	WalkError(r, func(err *Error) bool {
+		for _, t := range err.Tags {
 			if t == tag {
+				result = true
 				return true
 			}
 		}
-		if e.Err != nil {
-			if err, ok := e.Err.(*Error); ok {
-				e = err
-				continue
-			}
-		}
-		break
-	}
-	return false
+		return false
+	})
+	return result
 }
 
 // HasTag returns true if the error is burrito error and has the specified tag.
@@ -107,6 +103,51 @@ func GetAllMessages(err error) []string {
 		}
 	}
 	return messages
+}
+
+func (r *Error) AddProperty(key string, value interface{}) {
+	if r.Properties == nil {
+		r.Properties = make(map[string]interface{})
+	}
+	r.Properties[key] = value
+}
+
+func (r *Error) GetProperty(key string) interface{} {
+	if r.Properties == nil {
+		return nil
+	}
+	return r.Properties[key]
+}
+
+func (r *Error) HasProperty(key string) bool {
+	if r.Properties == nil {
+		return false
+	}
+	_, ok := r.Properties[key]
+	return ok
+}
+
+// GetProperty returns the property value for the specified key.
+func GetProperty(err error, key string) interface{} {
+	if err == nil {
+		return nil
+	}
+	if e, ok := err.(*Error); ok {
+		return e.GetProperty(key)
+	}
+	return nil
+}
+
+// WalkError walks the error tree and calls the specified function for each error.
+// If the function returns true, the walk is aborted.
+func WalkError(err error, fn func(err *Error) bool) {
+	for err != nil && IsBurritoError(err) {
+		e := AsBurritoError(err)
+		if fn(e) {
+			return
+		}
+		err = e.Err
+	}
 }
 
 // IsBurritoError returns true if the error is a burrito error.
